@@ -41,7 +41,7 @@ public class Test {
     public void delopyProcess(){
         Deployment deploy = repositoryService.createDeployment().addClasspathResource("process/qingjia.xml").addClasspathResource("process/qingjia.png")
                 .name("请假审批流程").deploy();
-        System.out.println("Github测试用例2");
+        System.out.println("Github测试用例");
         System.out.println(deploy.getId());
         System.out.println(deploy.getName());
     }
