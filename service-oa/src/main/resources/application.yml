@@ -1,0 +1,8 @@
+spring:
+  application:
+    name: service-oa
+  profiles:
+    active: dev
+  jackson:
+    date-format: yyy MM-dd HH:mm:ss
+    time-zone: GMT+8
