@@ -15,7 +15,10 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
+import org.springframework.util.ResourceUtils;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -140,6 +143,11 @@ public class Test {
         System.out.println(process.getId());
         System.out.println(process.getName());
 
+    }
+    @org.junit.Test
+    public void test() throws FileNotFoundException {
+        File path=new File(ResourceUtils.getURL("resource/process").getPath()).getAbsoluteFile();
+        System.out.println(path);
     }
 
 }
