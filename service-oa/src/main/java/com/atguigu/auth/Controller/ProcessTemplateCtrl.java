@@ -9,7 +9,11 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiParam;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.FileNotFoundException;
 
 /**
  * @author cjh
@@ -66,6 +70,19 @@ public class ProcessTemplateCtrl {
     @DeleteMapping("remove/{id}")
     public Result remove(@PathVariable Long id) {
         processTemplateService.removeById(id);
+        return Result.ok();
+    }
+    @PreAuthorize("hasAuthority('bnt.processTemplate.templateSet')")
+    @ApiOperation(value = "上传流程定义")
+    @PostMapping("/uploadProcessDefinition")
+    public Result uploadProcessDefinition(MultipartFile file) throws FileNotFoundException {
+        return Result.ok(processTemplateService.upload(file));
+    }
+    @PreAuthorize("hasAuthority('bnt.processTemplate.publish')")
+    @ApiOperation(value = "发布")
+    @GetMapping("/publish/{id}")
+    public Result publish(@PathVariable Long id) {
+        processTemplateService.publish(id);
         return Result.ok();
     }
 }

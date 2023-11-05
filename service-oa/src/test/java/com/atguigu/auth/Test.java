@@ -148,6 +148,8 @@ public class Test {
     public void test() throws FileNotFoundException {
         File path=new File(ResourceUtils.getURL("resource/process").getPath()).getAbsoluteFile();
         System.out.println(path);
+        String admin = JwtUtils.createToken(1L, "admin");
+        System.out.println(admin);
     }
 
 }

@@ -70,10 +70,4 @@ public class ProcessTypeCtrl {
     public Result findAll() {
         return Result.ok(processTypeService.list());
     }
-    @PreAuthorize("hasAuthority('bnt.processTemplate.templateSet')")
-    @ApiOperation(value = "上传流程定义")
-    @PostMapping("/uploadProcessDefinition")
-    public Result uploadProcessDefinition(MultipartFile file) throws FileNotFoundException{
-        return Result.ok(processTypeService.upload(file));
-    }
 }
