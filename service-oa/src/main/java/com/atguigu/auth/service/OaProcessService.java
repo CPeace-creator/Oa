@@ -32,4 +32,6 @@ public interface OaProcessService extends IService<Process> {
     Map<String, Object> show(Long id);
 
     void approve(ApprovalVo approvalVo);
+
+    IPage<ProcessVo> findStarted(Page<ProcessVo> pageParam);
 }

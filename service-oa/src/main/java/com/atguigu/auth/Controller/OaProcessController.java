@@ -48,6 +48,17 @@ public class OaProcessController {
         IPage<ProcessVo> pageModel = processService.selectPage(pageParam, processQueryVo);
         return Result.ok(pageModel);
     }
+    @ApiOperation(value = "已发起")
+    @GetMapping("/findStarted/{page}/{limit}")
+    public Result findStarted(
+            @ApiParam(name = "page", value = "当前页码", required = true)
+            @PathVariable Long page,
+
+            @ApiParam(name = "limit", value = "每页记录数", required = true)
+            @PathVariable Long limit) {
+        Page<ProcessVo> pageParam = new Page<>(page, limit);
+        return Result.ok(processService.findStarted(pageParam));
+    }
 
 }
 

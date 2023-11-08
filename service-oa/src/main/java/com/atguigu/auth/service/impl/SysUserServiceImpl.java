@@ -8,6 +8,7 @@ import com.atguigu.common.response.Utils.JwtUtils;
 import com.atguigu.common.response.Utils.MD5;
 import com.atguigu.config.Exception.CjhException;
 import com.atguigu.model.system.SysUser;
+import com.atguigu.security.custom.LoginUserInfoHelper;
 import com.atguigu.vo.system.LoginVo;
 import com.atguigu.vo.system.RouterVo;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
@@ -32,6 +33,7 @@ import java.util.Map;
  */
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
+
     @Autowired
     private SysMenuService sysMenuService;
     @Autowired
@@ -93,5 +95,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     public SysUser getByUsername(String userName) {
         return this.getOne(new LambdaQueryWrapper<SysUser>().eq(SysUser::getUsername, userName));
+    }
+
+    @Override
+    public Map<String, Object> getCurrentUser() {
+        SysUser sysUser = baseMapper.selectById(LoginUserInfoHelper.getUserId());
+        Map<String, Object> map = new HashMap<>();
+        map.put("name", sysUser.getName());
+        map.put("phone", sysUser.getPhone());
+        return map;
     }
 }

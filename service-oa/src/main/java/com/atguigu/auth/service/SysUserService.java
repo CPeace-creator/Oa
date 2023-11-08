@@ -24,4 +24,5 @@ public interface SysUserService extends IService<SysUser> {
 
     Result login(LoginVo login);
     SysUser getByUsername(String userName);
+    Map<String, Object> getCurrentUser();
 }
