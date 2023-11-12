@@ -60,5 +60,12 @@ public class WechatMenuController {
     public Result findMenuInfo() {
         return Result.ok(menuService.findMenuInfo());
     }
+    //@PreAuthorize("hasAuthority('bnt.menu.syncMenu')")
+    @ApiOperation(value = "同步菜单")
+    @GetMapping("syncMenu")
+    public Result createMenu() {
+        menuService.syncMenu();
+        return Result.ok();
+    }
 }
 

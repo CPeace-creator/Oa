@@ -17,4 +17,5 @@ import java.util.List;
 public interface WechatMenuService extends IService<Menu> {
 
     List<MenuVo> findMenuInfo();
+    void syncMenu();
 }

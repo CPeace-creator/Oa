@@ -3,10 +3,7 @@ package com.atguigu.auth.service.impl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
 import com.atguigu.auth.mapper.OaProcessMapper;
-import com.atguigu.auth.service.OaProcessRecordService;
-import com.atguigu.auth.service.OaProcessService;
-import com.atguigu.auth.service.OaProcessTemplateService;
-import com.atguigu.auth.service.SysUserService;
+import com.atguigu.auth.service.*;
 import com.atguigu.model.process.Process;
 import com.atguigu.model.process.ProcessRecord;
 import com.atguigu.model.process.ProcessTemplate;
@@ -71,6 +68,9 @@ public class OaProcessServiceImpl extends ServiceImpl<OaProcessMapper,Process> i
 
     @Autowired
     private TaskService taskService;
+
+    @Autowired
+    private MessageService messageService;
     @Autowired
     private OaProcessRecordService processRecordService;
 
@@ -130,9 +130,9 @@ public class OaProcessServiceImpl extends ServiceImpl<OaProcessMapper,Process> i
                 SysUser user = sysUserService.getByUsername(task.getAssignee());//获取下一位审批人
                 assigneeList.add(user.getName());
                 //推送消息给下一个审批人，后续完善
-
+                messageService.pushPendingMessage(process.getId(), sysUser.getId(), task.getId());
             }
-            process.setDescription("等待" + StringUtils.join(assigneeList.toArray(), ',') + "审批");
+            process.setDescription("等待" + StringUtils.join(assigneeList.toArray(), ",") + "审批");
         }
         processMapper.updateById(process);
         //记录操作行为
@@ -221,73 +221,71 @@ public class OaProcessServiceImpl extends ServiceImpl<OaProcessMapper,Process> i
         List<Task> taskList = this.getCurrentTaskList(process.getProcessInstanceId());
         if (!CollectionUtils.isEmpty(taskList)) {
             List<String> assigneeList = new ArrayList<>();
-            for(Task task : taskList) {
+            for (Task task : taskList) {
                 SysUser sysUser = sysUserService.getByUsername(task.getAssignee());
                 assigneeList.add(sysUser.getName());
-
-                //推送消息给下一个审批人
+                process.setDescription("等待" + StringUtils.join(assigneeList.toArray(), ",") + "审批");
+                process.setStatus(1);
+                if (approvalVo.getStatus().intValue() == 1) {
+                    process.setDescription("审批完成（同意）");
+                    process.setStatus(2);
+                } else {
+                    process.setDescription("审批完成（拒绝）");
+                    process.setStatus(-1);
+                }
             }
-            process.setDescription("等待" + StringUtils.join(assigneeList.toArray(), ",") + "审批");
-            process.setStatus(1);
-        } else {
-            if(approvalVo.getStatus().intValue() == 1) {
-                process.setDescription("审批完成（同意）");
-                process.setStatus(2);
-            } else {
-                process.setDescription("审批完成（拒绝）");
-                process.setStatus(-1);
+            //推送消息给申请人
+            messageService.pushProcessedMessage(process.getId(), process.getUserId(), approvalVo.getStatus());
+            this.updateById(process);
+        }
+    }
+
+        @Override
+        public IPage<ProcessVo> findStarted (Page < ProcessVo > pageParam) {
+            ProcessQueryVo processQueryVo = new ProcessQueryVo();
+            processQueryVo.setUserId(LoginUserInfoHelper.getUserId());
+            IPage<ProcessVo> page = processMapper.selectPage(pageParam, processQueryVo);
+            for (ProcessVo item : page.getRecords()) {
+                item.setTaskId("0");
             }
+            return page;
         }
-        //推送消息给申请人
-        this.updateById(process);
-    }
 
-    @Override
-    public IPage<ProcessVo> findStarted(Page<ProcessVo> pageParam) {
-        ProcessQueryVo processQueryVo = new ProcessQueryVo();
-        processQueryVo.setUserId(LoginUserInfoHelper.getUserId());
-        IPage<ProcessVo> page = processMapper.selectPage(pageParam, processQueryVo);
-        for (ProcessVo item : page.getRecords()) {
-            item.setTaskId("0");
+        private void endTask (String taskId){
+            //  当前任务
+            Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+            BpmnModel bpmnModel = repositoryService.getBpmnModel(task.getProcessDefinitionId());
+            List endEventList = bpmnModel.getMainProcess().findFlowElementsOfType(EndEvent.class);
+            // 并行任务可能为null
+            if (CollectionUtils.isEmpty(endEventList)) {
+                return;
+            }
+            FlowNode endFlowNode = (FlowNode) endEventList.get(0);
+            FlowNode currentFlowNode = (FlowNode) bpmnModel.getMainProcess().getFlowElement(task.getTaskDefinitionKey());
+
+            //  临时保存当前活动的原始方向
+            List originalSequenceFlowList = new ArrayList<>();
+            originalSequenceFlowList.addAll(currentFlowNode.getOutgoingFlows());
+            //  清理活动方向
+            currentFlowNode.getOutgoingFlows().clear();
+
+            //  建立新方向
+            SequenceFlow newSequenceFlow = new SequenceFlow();
+            newSequenceFlow.setId("newSequenceFlowId");
+            newSequenceFlow.setSourceFlowElement(currentFlowNode);
+            newSequenceFlow.setTargetFlowElement(endFlowNode);
+            List newSequenceFlowList = new ArrayList<>();
+            newSequenceFlowList.add(newSequenceFlow);
+            //  当前节点指向新的方向
+            currentFlowNode.setOutgoingFlows(newSequenceFlowList);
+
+            //  完成当前任务
+            taskService.complete(task.getId());
         }
-        return page;
-    }
 
-    private void endTask(String taskId) {
-        //  当前任务
-        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
-        BpmnModel bpmnModel = repositoryService.getBpmnModel(task.getProcessDefinitionId());
-        List endEventList = bpmnModel.getMainProcess().findFlowElementsOfType(EndEvent.class);
-        // 并行任务可能为null
-        if(CollectionUtils.isEmpty(endEventList)) {
-            return;
+        //获取当前任务
+        private List<Task> getCurrentTaskList (String processInstanceId){
+            List<Task> tasks = taskService.createTaskQuery().processInstanceId(processInstanceId).list();
+            return tasks;
         }
-        FlowNode endFlowNode = (FlowNode) endEventList.get(0);
-        FlowNode currentFlowNode = (FlowNode) bpmnModel.getMainProcess().getFlowElement(task.getTaskDefinitionKey());
-
-        //  临时保存当前活动的原始方向
-        List originalSequenceFlowList = new ArrayList<>();
-        originalSequenceFlowList.addAll(currentFlowNode.getOutgoingFlows());
-        //  清理活动方向
-        currentFlowNode.getOutgoingFlows().clear();
-
-        //  建立新方向
-        SequenceFlow newSequenceFlow = new SequenceFlow();
-        newSequenceFlow.setId("newSequenceFlowId");
-        newSequenceFlow.setSourceFlowElement(currentFlowNode);
-        newSequenceFlow.setTargetFlowElement(endFlowNode);
-        List newSequenceFlowList = new ArrayList<>();
-        newSequenceFlowList.add(newSequenceFlow);
-        //  当前节点指向新的方向
-        currentFlowNode.setOutgoingFlows(newSequenceFlowList);
-
-        //  完成当前任务
-        taskService.complete(task.getId());
     }
-
-    //获取当前任务
-    private List<Task> getCurrentTaskList(String processInstanceId) {
-        List<Task> tasks = taskService.createTaskQuery().processInstanceId(processInstanceId).list();
-        return tasks;
-    }
-}
